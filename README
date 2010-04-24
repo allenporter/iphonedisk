@@ -1,27 +1,36 @@
-iPhoneDisk is a MacFUSE filesystem for reading and writing data on your iPhone.
-It uses the AFC commands built into the MobileDevice library, largely
-documented by the iPhone-dev people (yay!).
+iphonedisk2
+-----------
 
-REQUIREMENTS: You must have MacFUSE installed. See
-http://code.google.com/p/macfuse/ for more details on MacFUSE.
+iphonedisk is a MacFUSE based filesystem that lets you access the contents of
+your iphone or ipod via USB.
 
-The provided shell script makes it easy to mount.  Your iPhone should be
-connected, but not connected in iTunes.
+This package contains a re-write of the original iphoendisk.  The original was
+plagued with bugs that were difficult to track down due to the nature of its
+design, and this rewrite is an attempt to fix that.
 
-$ ./mount.sh 
-Waiting for phone... established.
-Mounting iPhone Volume...
-$ ls -l /Volumes/iPhone/
-total 0
-drwxrwxrwx   2 root  wheel  0 Dec 31  1969 DCIM
--rw-rw-rw-   1 root  wheel  0 Dec 31  1969 com.apple.itunes.lock_sync
-drwxrwxrwx   2 root  wheel  0 Dec 31  1969 iTunes_Control
-$ echo hello > /Volumes/iPhone/foo
-$ ls -l /Volumes/iPhone/
-total 2
-drwxrwxrwx   2 root  wheel  0 Dec 31  1969 DCIM
--rw-rw-rw-   1 root  wheel  0 Dec 31  1969 com.apple.itunes.lock_sync
--rw-r--r--   1 root  wheel  6 Dec 31  1969 foo
-drwxrwxrwx   2 root  wheel  0 Dec 31  1969 iTunes_Control
-$ cat /Volumes/iPhone/foo
-hello
+In order to make the system simpler, its split into more moving parts (oops),
+with the goal to have fewer lines of code running inside of MacFUSE.  The
+different components expose a protocol buffer RPC service which uses Mach IPC
+via MIG as the communication channel.  Using Mach IPC is perhaps overkill,
+as domain sockets could be used instead, however it seemed fun to try.  One
+advantage over domain sockets is that by using the MIG layer, it does all of
+the message parsing for you.
+
+Components:
+
+FsService - Exports a protocol buffer RPC service for all filesystem commands.
+The interface looks a lot like the FUSE API.
+
+MountService - Exports a protocol buffer RPC service that actually mounts a
+fuse volume.  The MountService typically has a FsService channel that it uses to
+proxy all of the fuse API calls.
+
+Current Status:
+
+The current shipping iphonedisk again runs as a single process, mobile_fs_util,
+however contains now GUI.  mobile_fs_util runs as a launch agent that waits
+for an iphone USB connection.  The installer package places the launch agent
+in /Library/iphonedisk and a .plist file in /Library/Launch Agents/.  The .plist
+file has configuration parameters such as the volume icon and volume name used
+when the disk is mounted.  You must reload the agent (or your computer) any
+time the configuration parameter are changed.
